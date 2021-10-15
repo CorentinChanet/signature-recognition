@@ -17,13 +17,18 @@ class ComponentParser:
         return self.image_id
 
     @staticmethod
-    def _proximity_check(right_edge, left_edge, cY_1, cY_2, threshold=50):
-        if (abs(right_edge - left_edge) < threshold) and (abs(cY_1 - cY_2) < threshold):
+    def _proximity_check(right_edge : int, left_edge : int, cY_1 : int, cY_2 : int,
+                         threshold_x=100, threshold_y=55) -> bool:
+        '''Docstring'''
+
+        if (abs(right_edge - left_edge) < threshold_x) and (abs(cY_1 - cY_2) < threshold_y):
             return True
         else:
             return False
 
     def parse(self, enhanced_image : np.ndarray) :
+        '''Docstring'''
+
         numLabels, labels, stats, centroids = cv2.connectedComponentsWithStats(enhanced_image)
 
         for i in range(0, numLabels):
@@ -34,9 +39,9 @@ class ComponentParser:
             area = stats[i, cv2.CC_STAT_AREA]
 
             (cX, cY) = centroids[i]
-            keepWidth = w > 85 and w < 2000
-            keepHeight = h > 85 and h < 3000
-            keepArea = area > 1000 and area < 12000
+            keepWidth = w > 30 and w < 1500
+            keepHeight = h > 30 and h < 1000
+            keepArea = area > 200 and area < 35000
 
             if all((keepWidth, keepHeight, keepArea)):
                 componentMask = (labels == i).astype("uint8") * 255
@@ -50,10 +55,6 @@ class ComponentParser:
                         'yh' : y + h}
 
                 new_component = Component(componentMask, centroid, bbox)
-
-                # cv2.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
-                # cv2.circle(output, (int(cX), int(cY)), 4, (0, 0, 255), -1)
-
                 idx = 0
 
                 while idx < len(self.components):
@@ -74,13 +75,15 @@ class ComponentParser:
                         merged_component_mask = left.component_mask + right.component_mask
                         merged_centroid = {'x': (left.centroid['x'] + right.centroid['x']) / 2,
                                            'y': (left.centroid['y'] + right.centroid['y']) / 2}
-                        merged_bbox = {'x': left.bbox['x'],
+                        merged_bbox = {'x': min(left.bbox['x'], right.bbox['x']),
                                        'y': min(left.bbox['y'], right.bbox['y']),
-                                       'w': right.bbox['xw'] - left.bbox['x'],
+                                       'w': max(left.bbox['xw'], right.bbox['xw']) - min(
+                                           left.bbox['x'], right.bbox['x']),
                                        'h': max(left.bbox['yh'], right.bbox['yh']) - min(
-                                           left.bbox['y'], right.bbox['y']),
-                                       'xw': right.bbox['xw'],
-                                       'yh': max(left.bbox['yh'], right.bbox['yh'])}
+                                           left.bbox['y'], right.bbox['y'])}
+
+                        merged_bbox['xw'] = merged_bbox['x'] + merged_bbox['w']
+                        merged_bbox['yh'] = merged_bbox['y'] + merged_bbox['h']
 
                         merged_component = Component(merged_component_mask, merged_centroid, merged_bbox)
 
@@ -91,13 +94,28 @@ class ComponentParser:
                     if not proximity:
                         idx += 1
 
+
                 self.components.append(new_component)
 
-    def output(self):
+        filtered_components = []
+        for component in self.components:
+
+            area_check = 6000 < component.bbox['w'] * component.bbox['h'] < 300000
+            width_check = 100 < component.bbox['w'] < 1200
+            height_check = 100 < component.bbox['h'] < 1200
+
+            if all((area_check, width_check, height_check)):
+                filtered_components.append(component)
+
+        self.components = filtered_components
+
+    def output(self, original_image):
+        '''Docstring'''
+
         if not self.components:
             return "No signatures were found on this document"
         else:
-            output = image.copy()
+            output = original_image.copy()
             for component in self.components:
                 x = component.bbox['x']
                 y = component.bbox['y']
@@ -107,21 +125,19 @@ class ComponentParser:
             cv2.imshow("output", output)
             cv2.waitKey(0)
 
-image = plt.imread("../data/train/0d178d095434170eac2cb58cc244bb8c_2.tif")
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+# image = plt.imread("../data/train/af5cfb0ee6d4caa263f332da79d907a7.tif")
+# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+# kernel = np.ones((2, 2),np.uint8)
+# erosion = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations = 1)
+# # blur = cv2.blur(erosion, (2, 2))
+#
+# thresh = cv2.threshold(erosion, 0, 255,
+#     cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+#
+# # cv2.imshow('check', thresh)
+# # cv2.waitKey(0)
 
-kernel = np.ones((3, 3),np.uint8)
-erosion = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations = 2)
 
-thresh = cv2.threshold(erosion, 0, 255,
-    cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-
-# cv2.imshow('check', thresh)
-# cv2.waitKey(0)
-
-parser = ComponentParser('0d178d095434170eac2cb58cc244bb8c_2')
-parser.parse(thresh)
-parser.output()
 
 
 
