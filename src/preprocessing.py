@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+def resize_image(image : np.ndarray) -> np.ndarray:
+    pass
 
 def enhance_image(image : np.ndarray) -> np.ndarray:
     '''Docstring'''
