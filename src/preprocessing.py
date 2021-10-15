@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 
 def resize_image(image : np.ndarray) -> np.ndarray:
-    pass
+    dim = (595*2, 842*2)
+    return cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
 
 def enhance_image(image : np.ndarray) -> np.ndarray:
     '''Docstring'''

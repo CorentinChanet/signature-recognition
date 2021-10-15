@@ -100,8 +100,8 @@ class ComponentParser:
         for component in self.components:
 
             area_check = 6000 < component.bbox['w'] * component.bbox['h'] < 300000
-            width_check = 75 < component.bbox['w'] < 1200
-            height_check = 50 < component.bbox['h'] < 1200
+            width_check = 35 < component.bbox['w'] < 600
+            height_check = 35 < component.bbox['h'] < 450
 
             if all((area_check, width_check, height_check)):
                 filtered_components.append(component)
