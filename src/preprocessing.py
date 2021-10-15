@@ -1,13 +1,5 @@
 import cv2
-import os
 import numpy as np
-
-def load_image(image_path : str) -> np.ndarray:
-    '''Docstring'''
-    image_path = os.path.abspath(image_path)
-    image = cv2.imread(image_path)
-
-    return image
 
 
 def enhance_image(image : np.ndarray) -> np.ndarray:

@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Component:
     def __init__(self, component_mask : np.ndarray, centroid : dict, bbox : dict):
@@ -124,22 +123,3 @@ class ComponentParser:
                 cv2.rectangle(output, (x, y), (xw, yh), (0, 255, 0), 3)
             cv2.imshow("output", output)
             cv2.waitKey(0)
-
-# image = plt.imread("../data/train/af5cfb0ee6d4caa263f332da79d907a7.tif")
-# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-# kernel = np.ones((2, 2),np.uint8)
-# erosion = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations = 1)
-# # blur = cv2.blur(erosion, (2, 2))
-#
-# thresh = cv2.threshold(erosion, 0, 255,
-#     cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-#
-# # cv2.imshow('check', thresh)
-# # cv2.waitKey(0)
-
-
-
-
-
-
-
