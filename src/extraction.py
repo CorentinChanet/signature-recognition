@@ -6,18 +6,49 @@ class Component:
         self.component_mask = component_mask
         self.bbox = bbox
         self.centroid = centroid
+        self.img = None
+
+    def show(self):
+        if isinstance(self.img, np.ndarray):
+            img = cv2.bitwise_not(self.img)
+            cv2.imshow("Component", img)
+            cv2.waitKey(0)
+        else:
+            print("The img has not been generated yet. Use parser.generate_rois to populate components")
 
 class ComponentParser:
     def __init__(self, image_id):
-        self.components = []
         self.image_id = image_id
+        self.components = []
+        self.rois = []
 
     def __str__(self):
         return self.image_id
 
     @staticmethod
+    def _merge_components(left : Component, right : Component) -> Component:
+        '''Docstring'''
+
+        merged_component_mask = left.component_mask + right.component_mask
+        merged_centroid = {'x': (left.centroid['x'] + right.centroid['x']) / 2,
+                           'y': (left.centroid['y'] + right.centroid['y']) / 2}
+        merged_bbox = {'x': min(left.bbox['x'], right.bbox['x']),
+                       'y': min(left.bbox['y'], right.bbox['y']),
+                       'w': max(left.bbox['xw'], right.bbox['xw']) - min(
+                           left.bbox['x'], right.bbox['x']),
+                       'h': max(left.bbox['yh'], right.bbox['yh']) - min(
+                           left.bbox['y'], right.bbox['y'])}
+
+        merged_bbox['xw'] = merged_bbox['x'] + merged_bbox['w']
+        merged_bbox['yh'] = merged_bbox['y'] + merged_bbox['h']
+
+        merged_component = Component(merged_component_mask, merged_centroid, merged_bbox)
+
+        return merged_component
+
+    @staticmethod
     def _proximity_check(right_edge : int, left_edge : int, cY_1 : int, cY_2 : int,
-                         threshold_x=100, threshold_y=55) -> bool:
+                         threshold_x=120, threshold_y=55) -> bool:
         '''Docstring'''
 
         if (abs(right_edge - left_edge) < threshold_x) and (abs(cY_1 - cY_2) < threshold_y):
@@ -38,8 +69,8 @@ class ComponentParser:
             area = stats[i, cv2.CC_STAT_AREA]
 
             (cX, cY) = centroids[i]
-            keepWidth = w > 30 and w < 1500
-            keepHeight = h > 30 and h < 1000
+            keepWidth = w > 15 and w < 1500
+            keepHeight = h > 15 and h < 1000
             keepArea = area > 200 and area < 35000
 
             if all((keepWidth, keepHeight, keepArea)):
@@ -71,21 +102,7 @@ class ComponentParser:
                         proximity = True
 
                     if proximity:
-                        merged_component_mask = left.component_mask + right.component_mask
-                        merged_centroid = {'x': (left.centroid['x'] + right.centroid['x']) / 2,
-                                           'y': (left.centroid['y'] + right.centroid['y']) / 2}
-                        merged_bbox = {'x': min(left.bbox['x'], right.bbox['x']),
-                                       'y': min(left.bbox['y'], right.bbox['y']),
-                                       'w': max(left.bbox['xw'], right.bbox['xw']) - min(
-                                           left.bbox['x'], right.bbox['x']),
-                                       'h': max(left.bbox['yh'], right.bbox['yh']) - min(
-                                           left.bbox['y'], right.bbox['y'])}
-
-                        merged_bbox['xw'] = merged_bbox['x'] + merged_bbox['w']
-                        merged_bbox['yh'] = merged_bbox['y'] + merged_bbox['h']
-
-                        merged_component = Component(merged_component_mask, merged_centroid, merged_bbox)
-
+                        merged_component = self._merge_components(left, right)
                         self.components.pop(idx)
                         new_component = merged_component
                         idx = 0
@@ -123,3 +140,19 @@ class ComponentParser:
                 cv2.rectangle(output, (x, y), (xw, yh), (0, 255, 0), 3)
             cv2.imshow("output", output)
             cv2.waitKey(0)
+
+    def generate_rois(self, original_image : np.ndarray):
+        '''Docstring'''
+
+        if not self.components:
+            print("No signatures were found on this document")
+        else:
+            img = original_image.copy()
+            for idx, component in enumerate(self.components):
+                x = component.bbox['x']
+                y = component.bbox['y']
+                xw = component.bbox['xw']
+                yh = component.bbox['yh']
+
+                cropped_img = img[y:yh, x:xw]
+                component.img = cropped_img
