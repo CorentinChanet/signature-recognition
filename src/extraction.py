@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from PIL import Image, ImageOps
 
 class Component:
     def __init__(self, component_mask : np.ndarray, centroid : dict, bbox : dict):
@@ -17,7 +18,7 @@ class Component:
             print("The img has not been generated yet. Use parser.generate_rois to populate components")
 
 class ComponentParser:
-    def __init__(self, image_id):
+    def __init__(self, image_id : str):
         self.image_id = image_id
         self.components = []
         self.rois = []
@@ -69,8 +70,8 @@ class ComponentParser:
             area = stats[i, cv2.CC_STAT_AREA]
 
             (cX, cY) = centroids[i]
-            keepWidth = w > 15 and w < 1500
-            keepHeight = h > 15 and h < 1000
+            keepWidth = w > 20 and w < 1500
+            keepHeight = h > 20 and h < 1000
             keepArea = area > 200 and area < 35000
 
             if all((keepWidth, keepHeight, keepArea)):
@@ -125,21 +126,27 @@ class ComponentParser:
 
         self.components = filtered_components
 
-    def output(self, original_image):
+    def output(self, original_image : np.ndarray, mode="write"):
         '''Docstring'''
 
         if not self.components:
             return "No signatures were found on this document"
         else:
-            output = original_image.copy()
-            for component in self.components:
+            for idx, component in enumerate(self.components):
+                output = original_image.copy()
                 x = component.bbox['x']
                 y = component.bbox['y']
                 xw = component.bbox['xw']
                 yh = component.bbox['yh']
-                cv2.rectangle(output, (x, y), (xw, yh), (0, 255, 0), 3)
-            cv2.imshow("output", output)
-            cv2.waitKey(0)
+                #cv2.rectangle(output, (x, y), (xw, yh), (0, 255, 0), 3)
+
+                if mode == 'show':
+                    cv2.imshow("output", output)
+                    cv2.waitKey(0)
+                elif mode == 'write':
+                    cropped_output = output[y:yh, x:xw]
+                    cv2.imwrite(f"/Users/Corty/Sync/becode_projects/Python/signature-recognition/parsed_documents/{self.image_id}_{idx}.png", cropped_output)
+
 
     def generate_rois(self, original_image : np.ndarray):
         '''Docstring'''
